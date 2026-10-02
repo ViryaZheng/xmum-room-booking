@@ -35,7 +35,7 @@
 ### 方式一：一键安装（推荐）
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/recomby-ai/xmum-room-booking/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ViryaZheng/xmum-room-booking/main/install.sh | bash
 ```
 
 自动完成：安装依赖 → 复制 Skill 到 openclaw → 引导配置账号
@@ -43,7 +43,7 @@ curl -sSL https://raw.githubusercontent.com/recomby-ai/xmum-room-booking/main/in
 ### 方式二：手动安装
 
 ```bash
-git clone https://github.com/recomby-ai/xmum-room-booking.git
+git clone https://github.com/ViryaZheng/xmum-room-booking.git
 cd xmum-room-booking
 pip install requests beautifulsoup4 google-genai Pillow
 python3 skill/scripts/auto_booking.py --setup

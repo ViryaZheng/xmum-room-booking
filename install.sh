@@ -14,7 +14,7 @@ echo ""
 echo "[1/3] Installing skill to $SKILL_DIR ..."
 rm -rf "$SKILL_DIR"
 mkdir -p "$HOME/.claude/skills"
-git clone https://github.com/recomby-ai/xmum-room-booking.git /tmp/xmum-room-booking-install
+git clone https://github.com/ViryaZheng/xmum-room-booking.git /tmp/xmum-room-booking-install
 cp -r /tmp/xmum-room-booking-install/skill "$SKILL_DIR"
 rm -rf /tmp/xmum-room-booking-install
 echo "✓ Skill installed"
