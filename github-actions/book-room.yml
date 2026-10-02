@@ -1,0 +1,70 @@
+# XMUM room auto-booking on GitHub Actions.
+# Copy this file to .github/workflows/ in your own PRIVATE repo (run logs show your campus ID),
+# then add 3 Actions secrets: XMUM_USERNAME, XMUM_PASSWORD, XMUM_GEMINI_KEY.
+# See README "每天自动预约（GitHub Actions）".
+
+name: XMUM room booking
+
+on:
+  schedule:
+    - cron: "2 16 * * *"   # UTC; = 00:02 Malaysia time, every day
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only log in and list free rooms, do not book"
+        type: boolean
+        default: true
+
+env:
+  ROOM_TYPE: silent        # silent | study | group | success
+  DAYS_AHEAD: 2            # XMUM allows today + 2 days; 2 = earliest chance at a slot
+  TIMES: "13:00-15:00,11:00-13:00,15:00-17:00,09:00-11:00,17:00-19:00,19:00-21:00"  # tried in order
+
+jobs:
+  book:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Kuala_Lumpur
+      XMUM_USERNAME: ${{ secrets.XMUM_USERNAME }}
+      XMUM_PASSWORD: ${{ secrets.XMUM_PASSWORD }}
+      XMUM_GEMINI_KEY: ${{ secrets.XMUM_GEMINI_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ViryaZheng/xmum-room-booking
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -q requests beautifulsoup4 google-genai Pillow
+
+      - name: Dry run (login + list free rooms)
+        if: ${{ inputs.dry_run }}
+        working-directory: skill/scripts
+        run: |
+          python3 - <<'EOF'
+          import os, sys, requests, auto_booking as ab
+          from datetime import datetime, timedelta
+          s = requests.Session()
+          s.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
+          if not any(ab.login(s) for _ in range(3)):
+              sys.exit("LOGIN FAILED")
+          t = ab.extract_csrf_token(s)
+          d = (datetime.now() + timedelta(days=int(os.environ["DAYS_AHEAD"]))).strftime("%Y-%m-%d")
+          rooms = ab.get_available_rooms(s, d, t, room_type=os.environ["ROOM_TYPE"])
+          print(f"DRY RUN OK: {d} free: {sorted({r['start_time'] + '-' + r['end_time'] + ' ' + r['room_name'] for r in rooms})}")
+          EOF
+
+      - name: Book
+        if: ${{ !inputs.dry_run }}
+        run: |
+          D=$(date -d "+${DAYS_AHEAD} days" +%F)
+          echo "Target date: $D"
+          for i in 1 2; do
+            python3 skill/scripts/auto_booking.py --room-type "$ROOM_TYPE" --time "$TIMES" --date "$D" | tee out.txt
+            if grep -qiE "Booking successful|already made a booking" out.txt; then exit 0; fi
+            [ $i -eq 1 ] && sleep 120
+          done
+          exit 1

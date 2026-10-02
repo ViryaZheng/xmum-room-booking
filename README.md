@@ -4,7 +4,7 @@
 
 **本项目是一个 Agent Skill**，兼容 [Claude Code](https://claude.ai/code) 与 [openclaw](https://github.com/anthropics/claude-code)。安装后 AI Agent 会掌握如何登录系统、查询空位、选择时间段并完成预约——整个流程由 AI 自主决策和操控脚本执行，无需人工介入。
 
-> 🔥 **推荐搭配 openclaw 定时功能使用**：openclaw 支持定时自动执行 Skill，设置一次后每天固定时间由 AI 自动运行预约，完全解放双手。
+> 🔥 **推荐用 GitHub Actions 每天自动预约**：免费、不需要电脑开机，见下方「每天自动预约（GitHub Actions）」。
 
 ---
 
@@ -89,6 +89,37 @@ python3 skill/scripts/auto_booking.py --room-type study --time "09:00-11:00,11:0
 **默认时间偏好：**
 - 工作日：`19:00-21:00` → `17:00-19:00` → `15:00-17:00`（依次尝试）
 - 周末：`15:00-17:00` → `13:00-15:00` → `11:00-13:00`（依次尝试）
+
+---
+
+## 每天自动预约（GitHub Actions，推荐）
+
+在 GitHub 上定时运行，不依赖电脑开机或联网。模板：[`github-actions/book-room.yml`](github-actions/book-room.yml)
+
+默认配置：每天 00:02（马来西亚时间）预约**后天**的静音自习室，优先 13:00–15:00，满了按顺序尝试其他时段。改文件顶部的 `ROOM_TYPE` / `DAYS_AHEAD` / `TIMES` 即可调整。
+
+**部署（本机已完成 `--setup`，并装好 [gh](https://cli.github.com/)）：**
+
+```bash
+# 1. 新建私有仓库（必须私有：运行日志会显示学号和预约信息）
+mkdir xmum-booking-cron && cd xmum-booking-cron
+mkdir -p .github/workflows
+curl -sSL https://raw.githubusercontent.com/ViryaZheng/xmum-room-booking/main/github-actions/book-room.yml -o .github/workflows/book-room.yml
+git init -b main && git add . && git commit -m "XMUM room booking"
+gh repo create xmum-booking-cron --private --source=. --push
+
+# 2. 从 ~/.xmu_booking.json 写入 3 个 secret（不会显示在屏幕上）
+python3 -c "import json,os;c=json.load(open(os.path.expanduser('~/.xmu_booking.json')));[open(f'/tmp/.x{k}','w').write(c[v]) for k,v in [('U','username'),('P','password'),('G','gemini_key')]]" \
+  && gh secret set XMUM_USERNAME < /tmp/.xU && gh secret set XMUM_PASSWORD < /tmp/.xP && gh secret set XMUM_GEMINI_KEY < /tmp/.xG; rm -f /tmp/.xU /tmp/.xP /tmp/.xG
+
+# 3. 测试（默认只登录 + 列出空房，不预约）
+gh workflow run book-room.yml
+gh run watch
+```
+
+- 手动运行时把 `dry_run` 设为 false 会**真实预约**。
+- 运行结果在仓库的 Actions 页面查看；失败时 GitHub 默认发邮件通知。
+- GitHub 定时任务偶尔会延迟几分钟。
 
 ---
 
