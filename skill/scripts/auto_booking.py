@@ -124,18 +124,23 @@ def check_credentials():
         sys.exit(1)
 
 
+# Tried in order; the next model is used when one fails (e.g. 503 high demand).
+CAPTCHA_MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"]
+
+
 def recognize_captcha(image_content):
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        img = Image.open(io.BytesIO(image_content))
-        response = client.models.generate_content(
-            model="gemini-flash-latest",
-            contents=["Return ONLY the captcha characters, no explanations.", img],
-        )
-        return response.text.strip()
-    except Exception as e:
-        print(f"✗ Captcha recognition error: {e}")
-        return None
+    for model in CAPTCHA_MODELS:
+        try:
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            img = Image.open(io.BytesIO(image_content))
+            response = client.models.generate_content(
+                model=model,
+                contents=["Return ONLY the captcha characters, no explanations.", img],
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"✗ Captcha recognition error ({model}): {e}")
+    return None
 
 
 def login(session):
